@@ -10,6 +10,8 @@ import sys
 import numpy as np
 import pandas as pd
 import datetime as dt
+import xml.etree.ElementTree as ET
+from json.decoder import JSONDecodeError
     
 class PublicData:
     conn = None
@@ -22,7 +24,7 @@ class PublicData:
         pass
     def conn2Oracle(self):
         try:
-            conn = ora.connect('crefin/crefin@localhost:1521/orcl')
+            conn = ora.connect('crefin/moon6715!@localhost:1521/orcl')
         except cx_Oracle.DatabaseError as e:
             error, = e.args
             if error.code == 1017:
@@ -116,18 +118,27 @@ class PublicData:
         url = url_format.format(func_nm=func_nm, service_key=service_key, page_no='1', num_rows='40', result_type='json', bas_dt=bas_dt)
         print(url)
         response = requests.get(url)
-        # print(response)
-        result_code = response.json()['response']['header']['resultCode']
-        result_msg = response.json()['response']['header']['resultMsg']
+        #print(response.text)
+        
+        try:
+            response.json()
+            result_code = response.json()['response']['header']['resultCode']
+            result_msg = response.json()['response']['header']['resultMsg']
+        except JSONDecodeError as e:
+            xmlroot = ET.fromstring(response.text)
+            result_code = xmlroot.findall("./cmmMsgHeader/returnReasonCode")[0].text
+            result_msg = xmlroot.findall("./cmmMsgHeader/returnAuthMsg")[0].text
+            return (result_code, result_msg)
+
         if result_code != '00':
-            print('resultCode: %s, resultMsg: %s\n' % (result_code, result_msg))
-            return result_code
+            return (result_code, resut_msg)
+        
         tot_cnt = response.json()['response']['body']['totalCount']
         print("Total Count(%s): %s" % (bas_dt, tot_cnt))
         
         if tot_rows == tot_cnt or tot_cnt == 0:
-            print('No need to call (bas_dt, tot_rows, tot_cnt) = (%s, %s, %s)\n' % (bas_dt, tot_rows, tot_cnt))
-            return '00'
+            result_msg = 'No need to call (bas_dt, tot_rows, tot_cnt) = ({}, {}, {})\n'.foramt(bas_dt, tot_rows, tot_cnt)
+            return ('00', result_msg)
         elif tot_rows > 0: # tot_rows < tot_cnt
             next_page_no = tot_rows // 40 + 1
         else:
@@ -139,13 +150,22 @@ class PublicData:
             url = url_format.format(func_nm=func_nm, service_key=service_key, page_no=page_no, num_rows='40', result_type='json', bas_dt=bas_dt)
             print(url)
             response = requests.get(url)
-            result_code = response.json()['response']['header']['resultCode']
-            result_msg = response.json()['response']['header']['resultMsg']
+            
+            try:
+                response.json()
+                result_code = response.json()['response']['header']['resultCode']
+                result_msg = response.json()['response']['header']['resultMsg']
+            except JSONDecodeError as e:
+                xmlroot = ET.fromstring(response.text)
+                result_code = xmlroot.findall("./cmmMsgHeader/returnReasonCode")[0].text
+                result_msg = xmlroot.findall("./cmmMsgHeader/returnAuthMsg")[0].text
+
             if result_code != '00':
-                print('resultCode: %s, resultMsg: %s\n' % (result_code, result_msg))
-                return result_code
+                return (result_code, result_msg)
+            
             self.insertNewRows(func_nm, self.changeItems2Tuples(response.json()))
-        return '00'
+            
+        return ('00', "success")
     ########################################################################################## 
     def saveOneBizYear(self, api_url, func_nm, service_key, biz_year):
         
@@ -157,17 +177,25 @@ class PublicData:
         print(url)
         response = requests.get(url)
         # print(response)
-        result_code = response.json()['response']['header']['resultCode']
-        result_msg = response.json()['response']['header']['resultMsg']
+        try:
+            response.json()
+            result_code = response.json()['response']['header']['resultCode']
+            result_msg = response.json()['response']['header']['resultMsg']
+        except JSONDecodeError as e:
+            xmlroot = fromstring(response.text)
+            result_code = xmlroot.findall("./cmmMsgHeader/returnReasonCode")[0].text
+            result_msg = xmlroot.findall("./cmmMsgHeader/returnAuthMsg")[0].text
+            return (result_code, result_msg)
+
         if result_code != '00':
-            print('resultCode: %s, resultMsg: %s\n' % (result_code, result_msg))
-            return result_code
+            return (result_code, result_msg)
+        
         tot_cnt = response.json()['response']['body']['totalCount']
         print("Total Count(%s): %s" % (biz_year, tot_cnt))
         
         if tot_rows == tot_cnt or tot_cnt == 0:
-            print('No need to call (biz_year, tot_rows, tot_cnt) = (%s, %s, %s)\n' % (biz_year, tot_rows, tot_cnt))
-            return '00'
+            result_msg = 'No need to call (biz_year, tot_rows, tot_cnt) = ({}, {}, {})\n'.format(biz_year, tot_rows, tot_cnt)
+            return ('00', result_msg)
         elif tot_rows > 0: # tot_rows < tot_cnt
             next_page_no = tot_rows // 40 + 1
         else:
@@ -179,27 +207,36 @@ class PublicData:
             url = url_format.format(func_nm=func_nm, service_key=service_key, page_no=page_no, num_rows='40', result_type='json', biz_year=biz_year)
             print(url)
             response = requests.get(url)
-            result_code = response.json()['response']['header']['resultCode']
-            result_msg = response.json()['response']['header']['resultMsg']
+            try:
+                response.json()
+                result_code = response.json()['response']['header']['resultCode']
+                result_msg = response.json()['response']['header']['resultMsg']
+            except JSONDecodeError as e:
+                xmlroot = ET.fromstring(response.text)
+                result_code = xmlroot.findall("./cmmMsgHeader/returnReasonCode")[0].text
+                result_msg = xmlroot.findall("./cmmMsgHeader/returnAuthMsg")[0].text
+            return (result_code, result_msg)
+
             if result_code != '00':
-                print('resultCode: %s, resultMsg: %s\n' % (result_code, result_msg))
-                return result_code
+                return (result_code, result_msg)
+            
             self.insertNewRows(func_nm, self.changeItems2Tuples(response.json()))
-        return '00'
+        return ('00', "success")
     ##########################################################################################
     def getCorpBasicInfoService(self, start_date, end_date):
         api_url = 'http://apis.data.go.kr/1160100/service/GetCorpBasicInfoService'
         service_key = 'OURvkwMPCLqp0qa4wJ4Q5%2B03sKV9utK35BXu59ZCta06BHB7lDXSoaNpsCGByd2nzfUl6AL0fK8bnSj%2Fk9f%2BIA%3D%3D'
-        # func_list = ['getCorpOutline', 'getAffiliate', 'getConsSubsComp']
-        func_list = ['getAffiliate']
+        #func_list = ['getAffiliate', 'getConsSubsComp']
+        func_list = ['getCorpOutline']
         
         
         for func_nm in func_list:
             max_start_dt = self.getMaxBasDt(func_nm, start_date, end_date)
             for bas_dt in pd.date_range(max_start_dt, end_date).strftime('%Y%m%d'):
-                result_code = self.saveOneBasDt(api_url, func_nm, service_key, bas_dt)
+                result_code, result_msg = self.saveOneBasDt(api_url, func_nm, service_key, bas_dt)
                 if result_code != '00':
-                    break;
+                    print(result_msg)
+                    return;
                 
     ##########################################################################################
     def getFinaStatInfoService(self, start_year, end_year):
@@ -210,16 +247,23 @@ class PublicData:
         for func_nm in func_list:
             max_start_year = self.getMaxBizYear(func_nm, start_year, end_year)
             for biz_year in range(int(max_start_year), int(end_year)):
-                result_code = self.saveOneBizYear(api_url, func_nm, service_key, str(biz_year))
+                result_code, result_msg = self.saveOneBizYear(api_url, func_nm, service_key, str(biz_year))
                 if result_code != '00':
-                    break;
+                    print(result_msg)
+                    return;
 if __name__ == "__main__":
     
     pcls = PublicData()
     
-    print('we created a Public Class')
     
-    # max_bas_dt = pcls.getMaxBasDt('getConsSubsComp', '20190101', '20191231')
+    
+    #print('we created a Public Class')
+    
+    pcls.getCorpBasicInfoService('20200901', '20201231')
+    #pcls.getFinaStatInfoService('2010', '2021')
+
+    
+    # max_bas_dt = pcls.getMaxBasDt('getConsSubsComp', '20210101', '20211231')
     # tot_rows = pcls.getTotalRows('getAffiliate', '20190101')
     # pcls.deleteIncompleteRows('getAffiliate', '20190102')
     # tuple_list = [('20190102', '1101111230012', '', '', 'N'),
@@ -233,19 +277,27 @@ if __name__ == "__main__":
     #               ('20190102', '1101111230020', '', '', 'N')]
 
     # pcls.insertNewRows('getAffiliate', tuple_list) 
-    
-    # url =  'http://apis.data.go.kr/1160100/service/GetCorpBasicInfoService'
-    # url += '/getAffiliate'
-    # url += '?serviceKey=OURvkwMPCLqp0qa4wJ4Q5%2B03sKV9utK35BXu59ZCta06BHB7lDXSoaNpsCGByd2nzfUl6AL0fK8bnSj%2Fk9f%2BIA%3D%3D'
-    # url += '&resultType=json'
-    # url += '&pageNo=1'
-    # url += '&numOfRows=40'
-    # url += '&basDt=20200703'
+  
+'''
+    url =  'http://apis.data.go.kr/1160100/service/GetCorpBasicInfoService'
+    url += '/getAffiliate'
+    url += '?serviceKey=OURvkwMPCLqp0qa4wJ4Q5%2B03sKV9utK35BXu59ZCta06BHB7lDXSoaNpsCGByd2nzfUl6AL0fK8bnSj%2Fk9f%2BIA%3D%3D'
+    url += '&resultType=json'
+    url += '&pageNo=1'
+    url += '&numOfRows=1'
+    url += '&basDt=20200703'
 
-    # print('url = ', url)
+    print('url = ', url)
 
-    # response = requests.get(url)
-    
+    response = requests.get(url)
+    print(response.headers)
+    print(response.json())
+    if response.json()['response']['header'] == None:
+        print("json is None")
+    result_code = response.json()['response']['header']['resultCode']
+    result_msg = response.json()['response']['header']['resultMsg']
+'''
+
     # tt = pcls.changeItems2Tuples(response.json())
     # print(tt)
     # pcls.insertNewRows('getAffiliate', tt)
@@ -257,7 +309,6 @@ if __name__ == "__main__":
     
     # pcls.saveOneBasDt(api_url, func_nm, service_key, bas_dt)
     
-    pcls.getCorpBasicInfoService('20200101', '20200508')
     # pcls.getFinaStatInfoService('2010', '2021')
 
                 
